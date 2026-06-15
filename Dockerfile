@@ -23,12 +23,23 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.
 # 5. Copiamos los archivos del proyecto al servidor
 COPY . /var/www/html
 
+# ... (Los pasos 1 al 5 de tu Dockerfile se quedan exactamente IGUAL)
+
 # 6. Instalamos Composer dentro del contenedor
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# 7. Otorgamos la propiedad de los archivos al usuario de Apache ANTES de ejecutar comandos
+RUN chown -R www-data:www-data /var/www/html
+
+# 8. Ejecutamos composer install como el usuario www-data para evitar conflictos de permisos
+USER www-data
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# 7. Asignamos los permisos correctos a las carpetas de almacenamiento de Laravel
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# 9. Generamos las cachés de Laravel para que vuele en producción
+RUN php artisan config:cache && php artisan route:cache && php artisan view:cache
 
-# 8. Exponemos el puerto estándar
+# 10. Volvemos al usuario raíz para que Docker inicie Apache sin problemas
+USER root
+
+# 11. Exponemos el puerto estándar
 EXPOSE 80
